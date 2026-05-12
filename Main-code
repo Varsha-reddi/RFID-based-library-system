@@ -1,0 +1,179 @@
+#include <SPI.h>
+#include <MFRC522.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#define SS_PIN 5
+#define RST_PIN 27
+#define BUZZER 4
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+// Student IDs
+String Radha = "F1EC4F1";
+String Seeta = "DD8D6A5";
+
+// Book IDs
+String Signals_and_systems = "6B4725F";
+String Digital_Electronics = "8323CD6";
+
+String currentStudent = "";
+
+void validBeep()
+{
+  digitalWrite(BUZZER, HIGH);
+  delay(200);
+  digitalWrite(BUZZER, LOW);
+}
+
+void invalidBeep()
+{
+  for(int i=0;i<2;i++)
+  {
+    digitalWrite(BUZZER, HIGH);
+    delay(200);
+    digitalWrite(BUZZER, LOW);
+    delay(200);
+  }
+}
+
+// Book status
+bool Signals_and_systemsIssued = false;
+bool Digital_ElectronicsIssued = false;
+
+void setup() {
+
+  Serial.begin(9600);
+  SPI.begin();
+  rfid.PCD_Init();
+
+  pinMode(BUZZER, OUTPUT);
+
+  lcd.init();
+  lcd.backlight();
+
+  lcd.setCursor(0,0);
+  lcd.print("Smart Library");
+  lcd.setCursor(0,1);
+  lcd.print("Scan ID Card");
+}
+
+void loop() {
+
+  if (!rfid.PICC_IsNewCardPresent()) return;
+  if (!rfid.PICC_ReadCardSerial()) return;
+
+  String tag="";
+
+  for(byte i=0;i<rfid.uid.size;i++){
+    tag += String(rfid.uid.uidByte[i],HEX);
+  }
+
+  tag.toUpperCase();
+
+  Serial.println(tag);
+
+  lcd.clear();
+
+  // STUDENT 1
+  if(tag == Radha){
+
+    validBeep();
+    currentStudent="Radha";
+
+    lcd.setCursor(0,0);
+    lcd.print("Hello Radha");
+    lcd.setCursor(0,1);
+    lcd.print("Scan Book");
+  }
+
+  // STUDENT 2
+  else if(tag == Seeta){
+    validBeep();
+    currentStudent="Seeta";
+
+    lcd.setCursor(0,0);
+    lcd.print("Hello Seeta");
+    lcd.setCursor(0,1);
+    lcd.print("Scan Book");
+  }
+
+  // BOOK 1
+  else if(tag == Signals_and_systems && currentStudent!=""){
+
+    validBeep();
+
+    if(Signals_and_systemsIssued == false){
+
+      lcd.setCursor(0,0);
+      lcd.print("Signals-and-systems");
+      lcd.setCursor(0,1);
+      lcd.print("Issued to ");
+      lcd.print(currentStudent);
+
+      Signals_and_systemsIssued = true;
+
+    }
+    else{
+
+      lcd.setCursor(0,0);
+      lcd.print("Signals-and-systems");
+      lcd.setCursor(0,1);
+      lcd.print("Returned by ");
+      lcd.print(currentStudent);
+
+      Signals_and_systemsIssued = false;
+
+    }
+
+    currentStudent="";
+  }
+
+  // BOOK 2
+  else if(tag == Digital_Electronics && currentStudent!=""){
+
+    validBeep();
+    
+    if(Digital_ElectronicsIssued == false){
+
+      lcd.setCursor(0,0);
+      lcd.print("Digital-Electronics");
+      lcd.setCursor(0,1);
+      lcd.print("Issued to ");
+      lcd.print(currentStudent);
+
+      Digital_ElectronicsIssued = true;
+
+    }
+    else{
+
+      lcd.setCursor(0,0);
+      lcd.print("Digital_Electronics");
+      lcd.setCursor(0,1);
+      lcd.print("Returned by ");
+      lcd.print(currentStudent);
+
+      Digital_ElectronicsIssued = false;
+
+    }
+
+    currentStudent="";
+  }
+
+  else{
+
+    invalidBeep();
+    lcd.setCursor(0,0);
+    lcd.print("Invalid Card");
+
+  }
+
+  delay(3000);
+
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Scan ID Card");
+
+  rfid.PICC_HaltA();
+}
